@@ -7,11 +7,13 @@
 
 namespace WpShiftStudio\WCGraphQLMemberDashboard\GraphQL;
 
+use WpShiftStudio\WCGraphQLMemberDashboard\Data\UserData;
+
 /**
  * Class TypeRegistry
  *
  * Registers all custom WPGraphQL object types and fields.
- * Types are stubbed here in Phase 1 and fully implemented in Phase 2.
+ * Phase 2: Full resolver implementation backed by UserData DAL.
  */
 class TypeRegistry {
 
@@ -26,11 +28,12 @@ class TypeRegistry {
 		$this->register_user_activity_type();
 		$this->register_notification_type();
 		$this->register_user_settings_type();
+		$this->register_member_stats_type();
 		$this->extend_user_type();
 	}
 
 	/**
-	 * Register UserProfile type.
+	 * Register MemberProfile type.
 	 *
 	 * @return void
 	 */
@@ -70,7 +73,7 @@ class TypeRegistry {
 	}
 
 	/**
-	 * Register UserActivity type.
+	 * Register MemberActivity type.
 	 *
 	 * @return void
 	 */
@@ -102,7 +105,7 @@ class TypeRegistry {
 	}
 
 	/**
-	 * Register Notification type.
+	 * Register MemberNotification type.
 	 *
 	 * @return void
 	 */
@@ -146,7 +149,7 @@ class TypeRegistry {
 	}
 
 	/**
-	 * Register UserSettings type.
+	 * Register MemberSettings type.
 	 *
 	 * @return void
 	 */
@@ -178,11 +181,52 @@ class TypeRegistry {
 	}
 
 	/**
+	 * Register MemberStats type — computed dashboard statistics.
+	 *
+	 * @return void
+	 */
+	private function register_member_stats_type(): void {
+		register_graphql_object_type(
+			'MemberStats',
+			[
+				'description' => __( 'Computed statistics for the member dashboard', 'wc-graphql-member-dashboard' ),
+				'fields'      => [
+					'activityCount'       => [
+						'type'        => 'Int',
+						'description' => __( 'Total number of activity log entries', 'wc-graphql-member-dashboard' ),
+					],
+					'unreadNotifications' => [
+						'type'        => 'Int',
+						'description' => __( 'Number of unread notifications', 'wc-graphql-member-dashboard' ),
+					],
+					'orderCount'          => [
+						'type'        => 'Int',
+						'description' => __( 'Total WooCommerce orders placed', 'wc-graphql-member-dashboard' ),
+					],
+					'totalSpent'          => [
+						'type'        => 'String',
+						'description' => __( 'Total amount spent (formatted decimal)', 'wc-graphql-member-dashboard' ),
+					],
+					'membershipStatus'    => [
+						'type'        => 'String',
+						'description' => __( 'Current membership status', 'wc-graphql-member-dashboard' ),
+					],
+					'profileCompleteness' => [
+						'type'        => 'Int',
+						'description' => __( 'Profile completeness percentage (0-100)', 'wc-graphql-member-dashboard' ),
+					],
+				],
+			]
+		);
+	}
+
+	/**
 	 * Extend the WPGraphQL User type with our custom fields.
 	 *
 	 * @return void
 	 */
 	private function extend_user_type(): void {
+
 		// Member profile field.
 		register_graphql_field(
 			'User',
@@ -190,9 +234,8 @@ class TypeRegistry {
 			[
 				'type'        => 'MemberProfile',
 				'description' => __( 'Extended member profile data', 'wc-graphql-member-dashboard' ),
-				'resolve'     => function ( $user ) {
-					$meta = get_user_meta( $user->userId, 'wcgmd_profile', true );
-					return is_array( $meta ) ? $meta : [];
+				'resolve'     => static function ( $user ): array {
+					return UserData::get_profile( $user->userId );
 				},
 			]
 		);
@@ -204,14 +247,8 @@ class TypeRegistry {
 			[
 				'type'        => 'MemberSettings',
 				'description' => __( 'User dashboard preferences', 'wc-graphql-member-dashboard' ),
-				'resolve'     => function ( $user ) {
-					$meta = get_user_meta( $user->userId, 'wcgmd_settings', true );
-					return is_array( $meta ) ? $meta : [
-						'emailNotifications' => true,
-						'marketingEmails'    => false,
-						'dashboardTheme'     => 'light',
-						'language'           => 'en',
-					];
+				'resolve'     => static function ( $user ): array {
+					return UserData::get_settings( $user->userId );
 				},
 			]
 		);
@@ -229,29 +266,9 @@ class TypeRegistry {
 						'description' => __( 'Number of entries to return (default 10)', 'wc-graphql-member-dashboard' ),
 					],
 				],
-				'resolve'     => function ( $user, $args ) {
-					global $wpdb;
-					$table = $wpdb->prefix . 'wcgmd_user_activity';
+				'resolve'     => static function ( $user, array $args ): array {
 					$limit = isset( $args['limit'] ) ? absint( $args['limit'] ) : 10;
-
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$rows = $wpdb->get_results(
-						$wpdb->prepare(
-							"SELECT * FROM {$table} WHERE user_id = %d ORDER BY created_at DESC LIMIT %d",
-							$user->userId,
-							$limit
-						)
-					);
-
-					return array_map(
-						fn( $row ) => [
-							'id'          => $row->id,
-							'type'        => $row->type,
-							'description' => $row->description,
-							'createdAt'   => $row->created_at,
-						],
-						$rows ?? []
-					);
+					return UserData::get_activity( $user->userId, $limit );
 				},
 			]
 		);
@@ -269,31 +286,22 @@ class TypeRegistry {
 						'description' => __( 'Return only unread notifications', 'wc-graphql-member-dashboard' ),
 					],
 				],
-				'resolve'     => function ( $user, $args ) {
-					global $wpdb;
-					$table      = $wpdb->prefix . 'wcgmd_notifications';
-					$unread_sql = ! empty( $args['unreadOnly'] ) ? 'AND is_read = 0' : '';
+				'resolve'     => static function ( $user, array $args ): array {
+					$unread_only = ! empty( $args['unreadOnly'] );
+					return UserData::get_notifications( $user->userId, $unread_only );
+				},
+			]
+		);
 
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$rows = $wpdb->get_results(
-						$wpdb->prepare(
-							"SELECT * FROM {$table} WHERE user_id = %d {$unread_sql} ORDER BY created_at DESC",
-							$user->userId
-						)
-					);
-
-					return array_map(
-						fn( $row ) => [
-							'id'        => $row->id,
-							'type'      => $row->type,
-							'title'     => $row->title,
-							'message'   => $row->message,
-							'isRead'    => (bool) $row->is_read,
-							'createdAt' => $row->created_at,
-							'readAt'    => $row->read_at,
-						],
-						$rows ?? []
-					);
+		// Member stats field.
+		register_graphql_field(
+			'User',
+			'memberStats',
+			[
+				'type'        => 'MemberStats',
+				'description' => __( 'Computed dashboard statistics for this member', 'wc-graphql-member-dashboard' ),
+				'resolve'     => static function ( $user ): array {
+					return UserData::get_stats( $user->userId );
 				},
 			]
 		);

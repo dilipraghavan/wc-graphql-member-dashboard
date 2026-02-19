@@ -7,11 +7,13 @@
 
 namespace WpShiftStudio\WCGraphQLMemberDashboard\GraphQL;
 
+use WpShiftStudio\WCGraphQLMemberDashboard\Data\UserData;
+
 /**
  * Class MutationRegistry
  *
  * Registers all custom WPGraphQL mutations.
- * Fully implemented in Phase 3.
+ * Phase 2: Full implementation with authentication and data writes.
  */
 class MutationRegistry {
 
@@ -29,6 +31,16 @@ class MutationRegistry {
 	}
 
 	/**
+	 * Get the currently authenticated user ID.
+	 * Returns 0 if not authenticated.
+	 *
+	 * @return int
+	 */
+	private static function get_current_user_id(): int {
+		return get_current_user_id();
+	}
+
+	/**
 	 * Mutation: updateMemberProfile
 	 *
 	 * @return void
@@ -37,7 +49,7 @@ class MutationRegistry {
 		register_graphql_mutation(
 			'updateMemberProfile',
 			[
-				'description'         => __( 'Update the authenticated user\'s profile fields.', 'wc-graphql-member-dashboard' ),
+				'description'         => __( "Update the authenticated user's profile fields.", 'wc-graphql-member-dashboard' ),
 				'inputFields'         => [
 					'bio'         => [ 'type' => 'String' ],
 					'phone'       => [ 'type' => 'String' ],
@@ -54,13 +66,49 @@ class MutationRegistry {
 						'type'        => 'MemberProfile',
 						'description' => __( 'The updated profile data', 'wc-graphql-member-dashboard' ),
 					],
+					'errors'  => [
+						'type'        => [ 'list_of' => 'String' ],
+						'description' => __( 'Validation error messages, if any', 'wc-graphql-member-dashboard' ),
+					],
 				],
-				'mutateAndGetPayload' => function ( $input ) {
-					// Phase 3: full implementation with auth checks.
-					// Stubbed for Phase 1 bootstrap.
+				'mutateAndGetPayload' => static function ( array $input ): array {
+					$user_id = self::get_current_user_id();
+
+					if ( ! $user_id ) {
+						return [
+							'success' => false,
+							'profile' => null,
+							'errors'  => [ __( 'You must be logged in to update your profile.', 'wc-graphql-member-dashboard' ) ],
+						];
+					}
+
+					// Sanitise inputs.
+					$data = [];
+					if ( isset( $input['bio'] ) ) {
+						$data['bio'] = sanitize_textarea_field( $input['bio'] );
+					}
+					if ( isset( $input['phone'] ) ) {
+						$data['phone'] = sanitize_text_field( $input['phone'] );
+					}
+					if ( isset( $input['location'] ) ) {
+						$data['location'] = sanitize_text_field( $input['location'] );
+					}
+					if ( isset( $input['website'] ) ) {
+						$data['website'] = esc_url_raw( $input['website'] );
+					}
+					if ( isset( $input['socialLinks'] ) && is_array( $input['socialLinks'] ) ) {
+						$data['socialLinks'] = array_map( 'esc_url_raw', $input['socialLinks'] );
+					}
+
+					$updated = UserData::update_profile( $user_id, $data );
+
+					// Log the activity.
+					UserData::log_activity( $user_id, 'profile', 'Profile updated via dashboard' );
+
 					return [
-						'success' => false,
-						'profile' => null,
+						'success' => true,
+						'profile' => $updated,
+						'errors'  => [],
 					];
 				},
 			]
@@ -76,7 +124,7 @@ class MutationRegistry {
 		register_graphql_mutation(
 			'updateMemberSettings',
 			[
-				'description'         => __( 'Update the authenticated user\'s dashboard settings.', 'wc-graphql-member-dashboard' ),
+				'description'         => __( "Update the authenticated user's dashboard settings.", 'wc-graphql-member-dashboard' ),
 				'inputFields'         => [
 					'emailNotifications' => [ 'type' => 'Boolean' ],
 					'marketingEmails'    => [ 'type' => 'Boolean' ],
@@ -86,12 +134,46 @@ class MutationRegistry {
 				'outputFields'        => [
 					'success'  => [ 'type' => 'Boolean' ],
 					'settings' => [ 'type' => 'MemberSettings' ],
+					'errors'   => [ 'type' => [ 'list_of' => 'String' ] ],
 				],
-				'mutateAndGetPayload' => function ( $input ) {
-					// Phase 3: full implementation.
+				'mutateAndGetPayload' => static function ( array $input ): array {
+					$user_id = self::get_current_user_id();
+
+					if ( ! $user_id ) {
+						return [
+							'success'  => false,
+							'settings' => null,
+							'errors'   => [ __( 'You must be logged in to update your settings.', 'wc-graphql-member-dashboard' ) ],
+						];
+					}
+
+					// Validate dashboardTheme.
+					if ( isset( $input['dashboardTheme'] ) && ! in_array( $input['dashboardTheme'], [ 'light', 'dark' ], true ) ) {
+						return [
+							'success'  => false,
+							'settings' => null,
+							'errors'   => [ __( 'Invalid dashboardTheme. Must be "light" or "dark".', 'wc-graphql-member-dashboard' ) ],
+						];
+					}
+
+					$data = array_intersect_key(
+						$input,
+						array_flip( [ 'emailNotifications', 'marketingEmails', 'dashboardTheme', 'language' ] )
+					);
+
+					if ( isset( $data['language'] ) ) {
+						$data['language'] = sanitize_text_field( $data['language'] );
+					}
+
+					$updated = UserData::update_settings( $user_id, $data );
+
+					// Log the activity.
+					UserData::log_activity( $user_id, 'settings', 'Dashboard settings updated' );
+
 					return [
-						'success'  => false,
-						'settings' => null,
+						'success'  => true,
+						'settings' => $updated,
+						'errors'   => [],
 					];
 				},
 			]
@@ -117,12 +199,34 @@ class MutationRegistry {
 				'outputFields'        => [
 					'success'      => [ 'type' => 'Boolean' ],
 					'notification' => [ 'type' => 'MemberNotification' ],
+					'errors'       => [ 'type' => [ 'list_of' => 'String' ] ],
 				],
-				'mutateAndGetPayload' => function ( $input ) {
-					// Phase 3: full implementation.
+				'mutateAndGetPayload' => static function ( array $input ): array {
+					$user_id = self::get_current_user_id();
+
+					if ( ! $user_id ) {
+						return [
+							'success'      => false,
+							'notification' => null,
+							'errors'       => [ __( 'You must be logged in.', 'wc-graphql-member-dashboard' ) ],
+						];
+					}
+
+					$notification_id = absint( $input['notificationId'] );
+					$updated         = UserData::mark_notification_read( $notification_id, $user_id );
+
+					if ( ! $updated ) {
+						return [
+							'success'      => false,
+							'notification' => null,
+							'errors'       => [ __( 'Notification not found or already read.', 'wc-graphql-member-dashboard' ) ],
+						];
+					}
+
 					return [
-						'success'      => false,
-						'notification' => null,
+						'success'      => true,
+						'notification' => $updated,
+						'errors'       => [],
 					];
 				},
 			]
@@ -146,12 +250,25 @@ class MutationRegistry {
 						'type'        => 'Int',
 						'description' => __( 'Number of notifications marked as read', 'wc-graphql-member-dashboard' ),
 					],
+					'errors'  => [ 'type' => [ 'list_of' => 'String' ] ],
 				],
-				'mutateAndGetPayload' => function ( $input ) {
-					// Phase 3: full implementation.
+				'mutateAndGetPayload' => static function ( array $input ): array {
+					$user_id = self::get_current_user_id();
+
+					if ( ! $user_id ) {
+						return [
+							'success' => false,
+							'count'   => 0,
+							'errors'  => [ __( 'You must be logged in.', 'wc-graphql-member-dashboard' ) ],
+						];
+					}
+
+					$count = UserData::mark_all_notifications_read( $user_id );
+
 					return [
-						'success' => false,
-						'count'   => 0,
+						'success' => true,
+						'count'   => $count,
+						'errors'  => [],
 					];
 				},
 			]
