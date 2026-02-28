@@ -25,7 +25,6 @@ A production-ready headless WordPress plugin that exposes a custom GraphQL API v
 | Frontend | Next.js 14, TypeScript, React |
 | GraphQL Client | Apollo Client |
 | Type Safety | GraphQL Codegen |
-| Styling | Tailwind CSS |
 
 ---
 
