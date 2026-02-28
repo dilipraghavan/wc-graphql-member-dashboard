@@ -1,6 +1,5 @@
 # WC GraphQL Member Dashboard
 
-> **Portfolio Project #4 of 11 — WP Shift Studio**
 
 A production-ready headless WordPress plugin that exposes a custom GraphQL API via WPGraphQL, consumed by a modern Next.js member dashboard with NextAuth authentication.
 
@@ -181,20 +180,6 @@ apply_filters( 'wcgmd_settings_schema', $schema, $user_id );
 
 ---
 
-## Build Phases
-
-| Phase | Status | Focus |
-|---|---|---|
-| 1 | ✅ Complete | Plugin bootstrap, DB tables, GraphQL type stubs |
-| 2 | 🔄 Next | Full GraphQL schema with resolvers |
-| 3 | ⏳ Planned | Mutation implementation with auth checks |
-| 4 | ⏳ Planned | JWT authentication setup |
-| 5 | ⏳ Planned | Next.js project setup |
-| 6 | ⏳ Planned | Dashboard pages |
-| 7 | ⏳ Planned | GraphQL Codegen |
-| 8 | ⏳ Planned | Polish & documentation |
-
----
 
 ## License
 
