@@ -3,6 +3,9 @@
 
 A production-ready headless WordPress plugin that exposes a custom GraphQL API via WPGraphQL, consumed by a modern Next.js member dashboard with NextAuth authentication.
 
+🔗 **Live Demo:** https://wcgmd-dashboard.vercel.app  
+📦 **Frontend Repo:** https://github.com/dilipraghavan/wcgmd-dashboard
+
 ---
 
 ## Features
@@ -23,7 +26,7 @@ A production-ready headless WordPress plugin that exposes a custom GraphQL API v
 | Backend | WordPress, WPGraphQL, PHP 7.4+ |
 | Authentication | WPGraphQL JWT Auth, NextAuth.js |
 | Frontend | Next.js 14, TypeScript, React |
-| GraphQL Client | Clientgraphql-request |
+| GraphQL Client | graphql-request |
 | Styling | CSS Modules |
 
 
