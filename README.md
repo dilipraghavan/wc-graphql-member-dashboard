@@ -23,8 +23,9 @@ A production-ready headless WordPress plugin that exposes a custom GraphQL API v
 | Backend | WordPress, WPGraphQL, PHP 7.4+ |
 | Authentication | WPGraphQL JWT Auth, NextAuth.js |
 | Frontend | Next.js 14, TypeScript, React |
-| GraphQL Client | Apollo Client |
-| Type Safety | GraphQL Codegen |
+| GraphQL Client | Clientgraphql-request |
+| Styling | CSS Modules |
+
 
 ---
 
@@ -33,7 +34,7 @@ A production-ready headless WordPress plugin that exposes a custom GraphQL API v
 ### Requirements
 - WordPress 6.0+
 - WPGraphQL 1.0+
-- WPGraphQL JWT Authentication (for Phase 4+)
+- WPGraphQL JWT Authentication  
 - PHP 7.4+
 
 ### Plugin Setup
@@ -135,24 +136,6 @@ mutation MarkAllRead {
 
 ---
  
-
-## Extensibility Hooks
-
-```php
-// Actions
-do_action( 'wcgmd_profile_updated',      $user_id, $old_data, $new_data );
-do_action( 'wcgmd_notification_created', $notification_id, $user_id );
-do_action( 'wcgmd_notification_read',    $notification_id, $user_id );
-
-// Filters
-apply_filters( 'wcgmd_profile_fields',  $fields, $user_id );
-apply_filters( 'wcgmd_activity_types',  $types );
-apply_filters( 'wcgmd_settings_schema', $schema, $user_id );
-```
-
----
-
-
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
