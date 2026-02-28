@@ -134,26 +134,7 @@ mutation MarkAllRead {
 ```
 
 ---
-
-## Project Structure
-
-```
-wc-graphql-member-dashboard/
-├── wc-graphql-member-dashboard.php   # Plugin bootstrap + constants
-├── includes/
-│   ├── class-plugin.php              # Singleton orchestrator
-│   ├── class-activator.php           # DB tables + demo data seeding
-│   ├── graphql/
-│   │   ├── class-type-registry.php   # Custom WPGraphQL types & fields
-│   │   └── class-mutation-registry.php # Custom mutations
-│   └── data/
-│       └── class-user-data.php       # Data Access Layer
-├── composer.json
-├── phpcs.xml.dist
-└── README.md
-```
-
----
+ 
 
 ## Extensibility Hooks
 
@@ -174,7 +155,7 @@ apply_filters( 'wcgmd_settings_schema', $schema, $user_id );
 
 ## License
 
-GPL-2.0+ — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
