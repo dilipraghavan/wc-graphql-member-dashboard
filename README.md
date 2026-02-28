@@ -14,14 +14,6 @@ A production-ready headless WordPress plugin that exposes a custom GraphQL API v
 - **Data Access Layer** — Clean DAL class separating SQL from resolvers
 - **Extensibility Hooks** — Actions and filters for third-party integration
 
-### Next.js Frontend *(Phase 5–7)*
-- Protected dashboard with NextAuth session management
-- Profile page with editable fields and optimistic UI updates
-- Notifications feed with read/unread toggle
-- Activity log with filtering
-- Settings panel with instant feedback
-- GraphQL Codegen for end-to-end type safety
-
 ---
 
 ## Tech Stack
